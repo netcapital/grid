@@ -1,0 +1,330 @@
+// breakpoints at these columns
+$breakpoints: 5, 6, 7, 8, 10, 12, 14, 16, 18, 20, 22, 24;
+$column-width: 50px;
+$max-columns: nth($breakpoints, length($breakpoints));
+
+$gutters: (
+	0: 8px,
+	7: 16px
+);
+
+$sides: (
+	0: 8px,
+	8: 12px,
+	12: 64px,
+	18: 128px
+);
+
+@mixin clearfix {
+	&::before,
+	&::after {
+		display: table;
+		content: '';
+	}
+
+	&::after {
+		clear: both;
+	}
+}
+
+@function breakpoint-width($cols) {
+	@return column-width($cols, $cols) + 2 * breakpoint-value($sides, $cols);
+}
+
+@function column-width($cols, $breakpoint) {//, $outer-gutters: false) {
+	$num-gutters: 0;
+
+	@if($cols > 0) {
+		$num-gutters: $cols - 1;
+	}
+	@else if ($cols < 0) {
+		$num-gutters: $cols + 1;
+	}
+
+	@return $cols * $column-width + $num-gutters * breakpoint-value($gutters, $breakpoint);// + $wrap-gutters * if($outer-gutters and $cols != 0, breakpoint-value($gutters, $breakpoint), 0); // - breakpoint-value($gutters, $breakpoint) + ;
+}
+
+@mixin table-columns($cols, $min-breakpoint: 0) {
+
+	@each $breakpoint, $width in $gutters {
+		@include breakpoint($breakpoint) {
+			padding-left: $width / 2;
+			padding-right: $width / 2;
+			@if $min-breakpoint >= $breakpoint {
+				width: column-width($cols, $breakpoint) + $width;
+			}
+			&:first-child {
+				padding-left: 0;
+				@if $min-breakpoint >= $breakpoint {
+					width: column-width($cols, $breakpoint) + $width/2;
+				}
+			}
+			&:last-child {
+				padding-right: 0;
+				@if $min-breakpoint >= $breakpoint {
+					width: column-width($cols, $breakpoint) + $width/2;
+				}
+			}
+		}
+	}
+}
+
+@function width-at-breakpoint($rules, $breakpoint) {
+	$type: type-of($rules);
+	@if $type == 'number' {
+		// if $width is a negative number, this column is $breakpoint - $width wide
+		@return $rules;
+	}
+	@else if $type == 'map' {
+		$mapped-value: breakpoint-value($rules, $breakpoint);
+		@return width-at-breakpoint(if($mapped-value, $mapped-value, $breakpoint), $breakpoint);
+	}
+	@else {
+		@warn $type;
+	}
+}
+
+@mixin breakpoint($cols, $base: false, $max: false) {
+	@if ($cols == 0 or $base or $cols == nth($breakpoints, 1)) {
+		@content;
+	}
+	@else if $max {
+		@media screen and (max-width: (breakpoint-width($cols) - 1)) {
+			@content;
+		}
+	}
+	@else {
+		@media screen and (min-width: breakpoint-width($cols)) {
+			@content;
+		}
+	}
+}
+
+// a row that can be positioned anywhere
+@mixin pushed-row($width: $max-columns, $push: 0, $max: $max-columns, $min: 1, $min-visible: 0, $position: relative, $display: block) {
+	left: 50%;
+	position: $position;
+	$first: true;
+	@if($min-visible != 0) {
+		display: none;
+	}
+	@each $breakpoint in $breakpoints {
+		@if ($breakpoint >= $min-visible) {
+			$columns: min($breakpoint, width-at-breakpoint($width, $breakpoint));
+			@include breakpoint($breakpoint) {
+				@if $first {
+					display: $display;
+					$first: false;
+				}
+				$width-px: column-width($columns, $breakpoint) + breakpoint-value($gutters, $breakpoint);
+				width: $width-px;
+				// minus half (the width of all the columns + outer gutters)
+				// plus the pushed columns + outer gutters iff push > 0
+				margin-left: -0.5 * (column-width($breakpoint, $breakpoint) + breakpoint-value($gutters, $breakpoint)) + column-width(width-at-breakpoint($push, $breakpoint), $breakpoint) + if(width-at-breakpoint($push, $breakpoint) != 0, width-at-breakpoint($push, $breakpoint) / abs(width-at-breakpoint($push, $breakpoint)), 0) * breakpoint-value($gutters, $breakpoint);
+			}
+		}
+	}
+}
+
+// a row that's always centered
+// todo: remove?
+@mixin row($width: $max-columns, $min: 1) {
+	@if ($min == 1) {
+		@include clearfix;
+		margin-right: auto;
+		margin-left: auto;
+	}
+	@else {
+		@include breakpoint($min) {
+			@include clearfix;
+			margin-right: auto;
+			margin-left: auto;
+		}
+	}
+	@each $breakpoint in $breakpoints {
+		$columns: width-at-breakpoint($width, $breakpoint);
+		@if $breakpoint <= $columns and $breakpoint >= $min {
+			@include breakpoint($breakpoint) {
+				width: column-width(min($breakpoint, $columns), $breakpoint) + breakpoint-value($gutters, $breakpoint);
+			}
+		}
+	}
+}
+
+// todo: remove.
+@mixin responsive-push($min-columns: 0, $columns: 0, $interval: 1, $rate: 1, $breakpoints: $breakpoints) {
+	@each $breakpoint in $breakpoints {
+		$delta: $breakpoint - $min-columns;
+		$increment: $delta / $interval * $rate + $columns;
+		@if ($breakpoint >= $min-columns and $delta % $interval == 0) {
+			@include breakpoint($breakpoint) {
+				margin-left: column-width($increment, $breakpoint) + breakpoint-value($gutters, $breakpoint) * 1.5;
+			}
+		}
+	}
+}
+
+@mixin push($push: 0, $min-visible: 0, $position: absolute) {
+	@if($min-visible != 0) {
+		display: none;
+	}
+	position: $position;
+	$first: true;
+	@each $breakpoint in $breakpoints {
+		@if ($breakpoint >= $min-visible) {
+			@include breakpoint($breakpoint) {
+				@if $first {
+					display: block;
+					$first: false;
+				}
+				margin-left: column-width(width-at-breakpoint($push, $breakpoint), $breakpoint) + if(width-at-breakpoint($push, $breakpoint) != 0, width-at-breakpoint($push, $breakpoint) / abs(width-at-breakpoint($push, $breakpoint)), 0) * breakpoint-value($gutters, $breakpoint);
+			}
+		}
+	}
+}
+
+@mixin column-margins() {
+	margin-right: breakpoint-value($gutters, 0) / 2;
+	margin-left: breakpoint-value($gutters, 0) / 2;
+
+	@include breakpoint(7) {
+		margin-right: breakpoint-value($gutters, 7) / 2;
+		margin-left: breakpoint-value($gutters, 7) / 2;
+	}
+}
+
+@mixin perfect-column($width: 1, $push: 0, $min-breakpoint: 0, $min-visible: 0, $max: $max-columns, $float: left, $display: block) {
+	// this column is hidden until $min-visible
+	// then this column is 100% until the $min-breakpoint is hit
+	// then this column is $width columns wide
+	// if $width is a negative number, this column is $breakpoint - $width wide
+	// it is pushed to the right by $push columns
+	@if ($float) {
+		float: $float;
+	}
+	$px-width: false;
+	$px-margin-left: false;
+	$px-margin-right: false;
+	@if $min-visible != 0 {
+		display: none;
+	}
+	@if $push == 'centered' {
+		$push: 0;
+	}
+
+	@each $breakpoint in $breakpoints {
+		@if $breakpoint >= $min-visible {
+			$push-width: width-at-breakpoint($push, $breakpoint);
+			$new-px-width: column-width(min(if($breakpoint >= $min-breakpoint, min(width-at-breakpoint($width, $breakpoint), $breakpoint), $breakpoint), $max), $breakpoint);
+
+			$new-px-margin-left: column-width($push-width, $breakpoint) + if($push-width > 0, 1, 0) * column-wrap($push-width, $breakpoint) + if($push-width < 0, -1, 1) * breakpoint-value($gutters, $breakpoint) / 2;
+
+			$new-px-margin-right: breakpoint-value($gutters, $breakpoint) / 2;
+			@if($breakpoint < $min-breakpoint) {
+				// todo: cleanup
+				$new-px-width: 100%;
+				$new-px-margin-left: false;
+				$new-px-margin-right: false;
+			}
+			@include breakpoint($breakpoint) {
+				@if not $px-width {
+					// this is the first visible breakpoint
+					display: $display;
+				}
+				@if $px-width != $new-px-width {
+					$px-width: $new-px-width;
+					width: $px-width;
+				}
+				@if $px-margin-left != $new-px-margin-left {
+					$px-margin-left: $new-px-margin-left;
+					margin-left: $px-margin-left;
+				}
+				@if $px-margin-right != $new-px-margin-right {
+					$px-margin-right: $new-px-margin-right;
+					margin-right: $px-margin-right;
+				}
+			}
+		}
+	}
+}
+
+// todo: remove?
+@mixin max-width($width, $min-visible: 0, $min-breakpoint: 0) {
+	$max-width: 0;
+	@each $breakpoint in $breakpoints {
+		@if ($breakpoint >= $min-visible and $breakpoint >= $min-breakpoint) {
+			$new-max-width: column-width(min($width, $breakpoint), $breakpoint);
+			@if $new-max-width != $max-width {
+				@include breakpoint($breakpoint) {
+					max-width: $new-max-width;
+				}
+				$max-width: $new-max-width;
+			}
+		}
+	}
+}
+
+@function column-wrap($cols, $breakpoint) {
+	@if ($cols > 0) {
+		@return breakpoint-value($gutters, $breakpoint);
+	}
+	@else if ($cols < 0) {
+		@return -1 * breakpoint-value($gutters, $breakpoint);
+	}
+	@return 0;
+}
+
+@mixin column-wrap($width, $push: 0, $force: false, $float: left) {
+	overflow: auto;
+	@if ($float) {
+		float: $float;
+	}
+	$px-margin-left: false;
+	@each $breakpoint in $breakpoints {
+		$push-width: width-at-breakpoint($push, $breakpoint);
+		// $new-px-margin-left: column-width($push-width, $breakpoint, true);
+
+		$new-px-margin-left: column-width($push-width, $breakpoint) + column-wrap($push-width, $breakpoint);// + if($push-width < 0, -1, 1) * breakpoint-value($gutters, $breakpoint) / 2;
+
+
+		@include breakpoint($breakpoint) {
+			// todo: only if changed
+			$w: width-at-breakpoint($width, $breakpoint);
+			@if($force) {
+				width: column-width(min($w, $breakpoint), $breakpoint) + column-wrap(min($w, $breakpoint), $breakpoint);// + breakpoint-value($gutters, $breakpoint);
+			}
+			@else {
+				max-width: column-width(min($w, $breakpoint), $breakpoint) + column-wrap(min($w, $breakpoint), $breakpoint);// + breakpoint-value($gutters, $breakpoint);
+			}
+			@if $px-margin-left != $new-px-margin-left {
+				$px-margin-left: $new-px-margin-left;
+				margin-left: $px-margin-left;
+			}
+		}
+	}
+}
+
+// a column that can exist outside of a row container
+@mixin column-without-row($width: $max-columns, $push: 0, $min-visible: 0) {
+	left: 50%;
+	position: relative;
+	$first: true;
+	@if($min-visible != 0) {
+		display: none;
+	}
+	@each $breakpoint in $breakpoints {
+		@if ($breakpoint >= $min-visible) {
+			$columns: min($breakpoint, width-at-breakpoint($width, $breakpoint));
+			@include breakpoint($breakpoint) {
+				@if $first {
+					display: block;
+					$first: false;
+				}
+				width: column-width($columns, $breakpoint);
+				// minus half (the width of all the columns)
+				// plus the pushed columns + outer gutters iff push > 0
+				margin-left: -0.5 * column-width($breakpoint, $breakpoint) + column-width(width-at-breakpoint($push, $breakpoint), $breakpoint) + if(width-at-breakpoint($push, $breakpoint) != 0, width-at-breakpoint($push, $breakpoint) / abs(width-at-breakpoint($push, $breakpoint)), 0) * breakpoint-value($gutters, $breakpoint);
+			}
+		}
+	}
+}
