@@ -1,13 +1,19 @@
-// breakpoints at these columns
+// limit our breakpoints to show the following column numbers
 $breakpoints: 5, 6, 7, 8, 10, 12, 14, 16, 18, 20, 22, 24;
-$column-width: 50px;
+
+// easier access
 $max-columns: nth($breakpoints, length($breakpoints));
 
+// the fixed width of a column
+$column-width: 50px;
+
+// the gutter width (can vary by breakpoint)
 $gutters: (
 	0: 8px,
 	7: 16px
 );
 
+// the minimum width between the columns and the edge of the viewport
 $sides: (
 	0: 8px,
 	8: 12px,
@@ -27,11 +33,14 @@ $sides: (
 	}
 }
 
+// the minimum viewport width at which to display $cols columns
 @function breakpoint-width($cols) {
-	@return column-width($cols, $cols) + 2 * breakpoint-value($sides, $cols);
+	@return column-width($cols, $cols) + 2 * value-at-breakpoint($sides, $cols);
 }
 
-@function column-width($cols, $breakpoint) {//, $outer-gutters: false) {
+// the width of $cols columns (including any gutters) at $breakpoint
+// todo: revisit negative cols
+@function column-width($cols, $breakpoint) {
 	$num-gutters: 0;
 
 	@if($cols > 0) {
@@ -41,11 +50,47 @@ $sides: (
 		$num-gutters: $cols + 1;
 	}
 
-	@return $cols * $column-width + $num-gutters * breakpoint-value($gutters, $breakpoint);// + $wrap-gutters * if($outer-gutters and $cols != 0, breakpoint-value($gutters, $breakpoint), 0); // - breakpoint-value($gutters, $breakpoint) + ;
+	@return $cols * $column-width + $num-gutters * value-at-breakpoint($gutters, $breakpoint);
 }
 
-@mixin table-columns($cols, $min-breakpoint: 0) {
+// determine the width (in columns) for a breakpoint given a set of rules.
+// rules can be a number or a map:
+// $rules: 1 means that the element is always 1 column wide
+// $rules: (0:8, 14:10) means that the element is 8 columns wide until 14 columns, at which point it is 10 columns wide
+@function value-at-breakpoint($rules, $breakpoint) {
+	$type: type-of($rules);
+	@if $type == 'number' {
+		@return $rules;
+	}
+	@else if $type == 'map' {
+		$index: false;
+		@each $key, $value in $rules {
+			@if ($breakpoint >= $key) {
+				$index: $key;
+			}
+		}
+		@if ($index) {
+			@return map-get($rules, $index);
+		}
+	}
+	@warn 'couldn’t determine breakpoint value for #{$breakpoint} in #{$rules}';
+}
 
+// todo: what does this do?
+@function column-wrap($cols, $breakpoint) {
+	@if ($cols > 0) {
+		@return value-at-breakpoint($gutters, $breakpoint);
+	}
+	@else if ($cols < 0) {
+		@return -1 * value-at-breakpoint($gutters, $breakpoint);
+	}
+	@return 0;
+}
+
+// sets the width for table columns
+// todo: is this that different from normal columns?
+// >table columns dont have margins
+@mixin table-columns($cols, $min-breakpoint: 0) {
 	@each $breakpoint, $width in $gutters {
 		@include breakpoint($breakpoint) {
 			padding-left: $width / 2;
@@ -69,32 +114,18 @@ $sides: (
 	}
 }
 
-@function width-at-breakpoint($rules, $breakpoint) {
-	$type: type-of($rules);
-	@if $type == 'number' {
-		// if $width is a negative number, this column is $breakpoint - $width wide
-		@return $rules;
-	}
-	@else if $type == 'map' {
-		$mapped-value: breakpoint-value($rules, $breakpoint);
-		@return width-at-breakpoint(if($mapped-value, $mapped-value, $breakpoint), $breakpoint);
-	}
-	@else {
-		@warn $type;
-	}
-}
-
-@mixin breakpoint($cols, $base: false, $max: false) {
-	@if ($cols == 0 or $base or $cols == nth($breakpoints, 1)) {
+// wrap a block of code in a media query (defined in columns, of course)
+@mixin breakpoint($cols, $max: false) {
+	@if ($cols == 0 or $cols == nth($breakpoints, 1)) {
 		@content;
 	}
 	@else if $max {
-		@media screen and (max-width: (breakpoint-width($cols) - 1)) {
+		@media (max-width: (breakpoint-width($cols) - 1)) {
 			@content;
 		}
 	}
 	@else {
-		@media screen and (min-width: breakpoint-width($cols)) {
+		@media (min-width: breakpoint-width($cols)) {
 			@content;
 		}
 	}
@@ -110,17 +141,17 @@ $sides: (
 	}
 	@each $breakpoint in $breakpoints {
 		@if ($breakpoint >= $min-visible) {
-			$columns: min($breakpoint, width-at-breakpoint($width, $breakpoint));
+			$columns: min($breakpoint, value-at-breakpoint($width, $breakpoint));
 			@include breakpoint($breakpoint) {
 				@if $first {
 					display: $display;
 					$first: false;
 				}
-				$width-px: column-width($columns, $breakpoint) + breakpoint-value($gutters, $breakpoint);
+				$width-px: column-width($columns, $breakpoint) + value-at-breakpoint($gutters, $breakpoint);
 				width: $width-px;
 				// minus half (the width of all the columns + outer gutters)
 				// plus the pushed columns + outer gutters iff push > 0
-				margin-left: -0.5 * (column-width($breakpoint, $breakpoint) + breakpoint-value($gutters, $breakpoint)) + column-width(width-at-breakpoint($push, $breakpoint), $breakpoint) + if(width-at-breakpoint($push, $breakpoint) != 0, width-at-breakpoint($push, $breakpoint) / abs(width-at-breakpoint($push, $breakpoint)), 0) * breakpoint-value($gutters, $breakpoint);
+				margin-left: -0.5 * (column-width($breakpoint, $breakpoint) + value-at-breakpoint($gutters, $breakpoint)) + column-width(value-at-breakpoint($push, $breakpoint), $breakpoint) + if(value-at-breakpoint($push, $breakpoint) != 0, value-at-breakpoint($push, $breakpoint) / abs(value-at-breakpoint($push, $breakpoint)), 0) * value-at-breakpoint($gutters, $breakpoint);
 			}
 		}
 	}
@@ -142,23 +173,10 @@ $sides: (
 		}
 	}
 	@each $breakpoint in $breakpoints {
-		$columns: width-at-breakpoint($width, $breakpoint);
+		$columns: value-at-breakpoint($width, $breakpoint);
 		@if $breakpoint <= $columns and $breakpoint >= $min {
 			@include breakpoint($breakpoint) {
-				width: column-width(min($breakpoint, $columns), $breakpoint) + breakpoint-value($gutters, $breakpoint);
-			}
-		}
-	}
-}
-
-// todo: remove.
-@mixin responsive-push($min-columns: 0, $columns: 0, $interval: 1, $rate: 1, $breakpoints: $breakpoints) {
-	@each $breakpoint in $breakpoints {
-		$delta: $breakpoint - $min-columns;
-		$increment: $delta / $interval * $rate + $columns;
-		@if ($breakpoint >= $min-columns and $delta % $interval == 0) {
-			@include breakpoint($breakpoint) {
-				margin-left: column-width($increment, $breakpoint) + breakpoint-value($gutters, $breakpoint) * 1.5;
+				width: column-width(min($breakpoint, $columns), $breakpoint) + value-at-breakpoint($gutters, $breakpoint);
 			}
 		}
 	}
@@ -177,28 +195,30 @@ $sides: (
 					display: block;
 					$first: false;
 				}
-				margin-left: column-width(width-at-breakpoint($push, $breakpoint), $breakpoint) + if(width-at-breakpoint($push, $breakpoint) != 0, width-at-breakpoint($push, $breakpoint) / abs(width-at-breakpoint($push, $breakpoint)), 0) * breakpoint-value($gutters, $breakpoint);
+				margin-left: column-width(value-at-breakpoint($push, $breakpoint), $breakpoint) + if(value-at-breakpoint($push, $breakpoint) != 0, value-at-breakpoint($push, $breakpoint) / abs(value-at-breakpoint($push, $breakpoint)), 0) * value-at-breakpoint($gutters, $breakpoint);
 			}
 		}
 	}
 }
 
+// basic column margins of 1/2 the gutter width on each side
 @mixin column-margins() {
-	margin-right: breakpoint-value($gutters, 0) / 2;
-	margin-left: breakpoint-value($gutters, 0) / 2;
-
-	@include breakpoint(7) {
-		margin-right: breakpoint-value($gutters, 7) / 2;
-		margin-left: breakpoint-value($gutters, 7) / 2;
+	@each $columns, $width in $gutters {
+		@include breakpoint($columns) {
+			margin-right: $width / 2;
+			margin-left: $width / 2;
+		}
 	}
 }
 
+// this is how you make columns
 @mixin perfect-column($width: 1, $push: 0, $min-breakpoint: 0, $min-visible: 0, $max: $max-columns, $float: left, $display: block) {
 	// this column is hidden until $min-visible
 	// then this column is 100% until the $min-breakpoint is hit
 	// then this column is $width columns wide
 	// if $width is a negative number, this column is $breakpoint - $width wide
 	// it is pushed to the right by $push columns
+	// todo: could optimize with max-width until width < total column width
 	@if ($float) {
 		float: $float;
 	}
@@ -214,12 +234,12 @@ $sides: (
 
 	@each $breakpoint in $breakpoints {
 		@if $breakpoint >= $min-visible {
-			$push-width: width-at-breakpoint($push, $breakpoint);
-			$new-px-width: column-width(min(if($breakpoint >= $min-breakpoint, min(width-at-breakpoint($width, $breakpoint), $breakpoint), $breakpoint), $max), $breakpoint);
+			$push-width: value-at-breakpoint($push, $breakpoint);
+			$new-px-width: column-width(min(if($breakpoint >= $min-breakpoint, min(value-at-breakpoint($width, $breakpoint), $breakpoint), $breakpoint), $max), $breakpoint);
 
-			$new-px-margin-left: column-width($push-width, $breakpoint) + if($push-width > 0, 1, 0) * column-wrap($push-width, $breakpoint) + if($push-width < 0, -1, 1) * breakpoint-value($gutters, $breakpoint) / 2;
+			$new-px-margin-left: column-width($push-width, $breakpoint) + if($push-width > 0, 1, 0) * column-wrap($push-width, $breakpoint) + if($push-width < 0, -1, 1) * value-at-breakpoint($gutters, $breakpoint) / 2;
 
-			$new-px-margin-right: breakpoint-value($gutters, $breakpoint) / 2;
+			$new-px-margin-right: value-at-breakpoint($gutters, $breakpoint) / 2;
 			@if($breakpoint < $min-breakpoint) {
 				// todo: cleanup
 				$new-px-width: 100%;
@@ -248,7 +268,7 @@ $sides: (
 	}
 }
 
-// todo: remove?
+// todo: remove, just replace with perfect-column
 @mixin max-width($width, $min-visible: 0, $min-breakpoint: 0) {
 	$max-width: 0;
 	@each $breakpoint in $breakpoints {
@@ -264,16 +284,7 @@ $sides: (
 	}
 }
 
-@function column-wrap($cols, $breakpoint) {
-	@if ($cols > 0) {
-		@return breakpoint-value($gutters, $breakpoint);
-	}
-	@else if ($cols < 0) {
-		@return -1 * breakpoint-value($gutters, $breakpoint);
-	}
-	@return 0;
-}
-
+// todo: remove?
 @mixin column-wrap($width, $push: 0, $force: false, $float: left) {
 	overflow: auto;
 	@if ($float) {
@@ -281,20 +292,20 @@ $sides: (
 	}
 	$px-margin-left: false;
 	@each $breakpoint in $breakpoints {
-		$push-width: width-at-breakpoint($push, $breakpoint);
+		$push-width: value-at-breakpoint($push, $breakpoint);
 		// $new-px-margin-left: column-width($push-width, $breakpoint, true);
 
-		$new-px-margin-left: column-width($push-width, $breakpoint) + column-wrap($push-width, $breakpoint);// + if($push-width < 0, -1, 1) * breakpoint-value($gutters, $breakpoint) / 2;
+		$new-px-margin-left: column-width($push-width, $breakpoint) + column-wrap($push-width, $breakpoint);// + if($push-width < 0, -1, 1) * value-at-breakpoint($gutters, $breakpoint) / 2;
 
 
 		@include breakpoint($breakpoint) {
 			// todo: only if changed
-			$w: width-at-breakpoint($width, $breakpoint);
+			$w: value-at-breakpoint($width, $breakpoint);
 			@if($force) {
-				width: column-width(min($w, $breakpoint), $breakpoint) + column-wrap(min($w, $breakpoint), $breakpoint);// + breakpoint-value($gutters, $breakpoint);
+				width: column-width(min($w, $breakpoint), $breakpoint) + column-wrap(min($w, $breakpoint), $breakpoint);// + value-at-breakpoint($gutters, $breakpoint);
 			}
 			@else {
-				max-width: column-width(min($w, $breakpoint), $breakpoint) + column-wrap(min($w, $breakpoint), $breakpoint);// + breakpoint-value($gutters, $breakpoint);
+				max-width: column-width(min($w, $breakpoint), $breakpoint) + column-wrap(min($w, $breakpoint), $breakpoint);// + value-at-breakpoint($gutters, $breakpoint);
 			}
 			@if $px-margin-left != $new-px-margin-left {
 				$px-margin-left: $new-px-margin-left;
@@ -314,7 +325,7 @@ $sides: (
 	}
 	@each $breakpoint in $breakpoints {
 		@if ($breakpoint >= $min-visible) {
-			$columns: min($breakpoint, width-at-breakpoint($width, $breakpoint));
+			$columns: min($breakpoint, value-at-breakpoint($width, $breakpoint));
 			@include breakpoint($breakpoint) {
 				@if $first {
 					display: block;
@@ -323,7 +334,7 @@ $sides: (
 				width: column-width($columns, $breakpoint);
 				// minus half (the width of all the columns)
 				// plus the pushed columns + outer gutters iff push > 0
-				margin-left: -0.5 * column-width($breakpoint, $breakpoint) + column-width(width-at-breakpoint($push, $breakpoint), $breakpoint) + if(width-at-breakpoint($push, $breakpoint) != 0, width-at-breakpoint($push, $breakpoint) / abs(width-at-breakpoint($push, $breakpoint)), 0) * breakpoint-value($gutters, $breakpoint);
+				margin-left: -0.5 * column-width($breakpoint, $breakpoint) + column-width(value-at-breakpoint($push, $breakpoint), $breakpoint) + if(value-at-breakpoint($push, $breakpoint) != 0, value-at-breakpoint($push, $breakpoint) / abs(value-at-breakpoint($push, $breakpoint)), 0) * value-at-breakpoint($gutters, $breakpoint);
 			}
 		}
 	}
