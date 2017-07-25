@@ -12,7 +12,7 @@ To contribute (aside submitting or commenting on Issues), please:
 1. Fork [the main repository](https://github.com/netcapital/grid).
 2. Make changes to the forked repository.
 3. Commit your changes in the forked repository with clear commit messages.
-4. Submit a pull request on GitHub by [comparing across forks]](https://github.com/netcapital/grid/compare/), and if you're resolving an Issue, please reference its number in your pull request.
+4. Submit a pull request on GitHub by [comparing across forks](https://github.com/netcapital/grid/compare/), and if you're resolving an Issue, please reference its number in your pull request.
 
 Remember, per the [GitHub Terms of Service](https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license):
 
