@@ -315,7 +315,7 @@ $sides: (
 		@include breakpoint($breakpoint) {
 			padding-left: $width / 2;
 			padding-right: $width / 2;
-			@if $min-breakpoint >= $breakpoint {
+			@if $breakpoint >= $min-breakpoint {
 				width: column-width($cols, $breakpoint) + $width;
 			}
 			&:first-child {
@@ -326,7 +326,7 @@ $sides: (
 			}
 			&:last-child {
 				padding-right: 0;
-				@if $min-breakpoint >= $breakpoint {
+				@if $breakpoint >= $min-breakpoint {
 					width: column-width($cols, $breakpoint) + $width/2;
 				}
 			}
@@ -334,7 +334,7 @@ $sides: (
 	}
 }
 
-// todo: remove, just replace with perfect-column when that uses max-width
+// todo: remove, just replace with block when that uses max-width
 @mixin max-width($width) {
 	$max-width: 0;
 	@each $breakpoint in $breakpoints {
