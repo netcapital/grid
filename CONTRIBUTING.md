@@ -7,11 +7,12 @@ Contributions are generally welcome. In particular, we seek the following types 
 - Bug fixes: resolve [Issues tagged as unfixed bugs](https://github.com/netcapital/grid/issues)
 - Improvements to documentation: fix typos, clarify language, apply consistent formatting, etc.
 
-To contribute (aside submitting or commenting on Issues), please:
+To contribute (aside from submitting or commenting on Issues), please:
 
 1. Fork [the main repository](https://github.com/netcapital/grid).
-2. Make changes to the forked repository.
-3. Commit your changes in the forked repository with clear commit messages.
+2. Create an appropriately named branch in the forked repository.
+2. Make changes to that branch.
+3. Commit your changes to that branch in the forked repository with clear commit messages.
 4. Submit a pull request on GitHub by [comparing across forks](https://github.com/netcapital/grid/compare/), and if you're resolving an Issue, please reference its number in your pull request.
 
 Remember, per the [GitHub Terms of Service](https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license):
